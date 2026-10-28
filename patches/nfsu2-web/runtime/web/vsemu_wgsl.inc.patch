@@ -31,3 +31,13 @@
                  wb_put(&eb, "%sdot((%s)%s, (%s)%s)", rr ? ", " : "", s0, sw2, row, sw2);
              }
              for (int rr = rows; rr < 4; rr++) wb_put(&eb, ", %s", rr == 3 ? "1.0" : "0.0");
+@@ -711,7 +708,7 @@
+     wb_put(&ob, "%s%s", W_VOUT, W_PSPAR);
+     w_textures(&ob, cubemask);
+     wb_put(&ob, "@fragment fn ps_%d(i: VOut) -> @location(0) vec4f {\n"
+-                "  return ps_end(i.col0 * textureSample(tex0, smp0, i.uv0.%s), i.fog);\n}\n",
+-           id, cube ? "xyz" : "xy");
++                "  return ps_end(i.col0 * textureSample(tex0, smp0, %s), i.fog);\n}\n",
++           id, cube ? "i.uv0.xyz" : "tcoord(i.uv0, P.proj[0])");
+     return ob.ok ? (int)ob.n : 0;
+ }

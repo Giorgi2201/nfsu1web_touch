@@ -1,6 +1,6 @@
 {
   "inspected_on": "2026-10-21",
-  "updated_on": "2026-10-26",
+  "updated_on": "2026-10-28",
   "repositories": [
     {
       "repository": "codepdbh/nfsu1-recompiled",
@@ -572,5 +572,18 @@
       "runtime/lifecycle.c"
     ],
     "reuse": "Existing background setting and focus/lifecycle contracts; expose Pause / Keep running and default to Pause instead of forcing run. Runtime lifecycle uses PC 1.4 background polling flag 0x735e78, as tested by message pump 0x411030, instead of Winsock startup count (initialized even in single-player). Native synthetic lifecycle smoke covers this distinction; browser/game validation remains manual. MIT notice retained in patches/nfsu2-web.LICENSE."
+  },
+  "minimap_projection": {
+    "date": "2026-10-28",
+    "runtime_revision": "31da468582c3de14fd6f4233831f62816e2df83d",
+    "sources": [
+      "runtime/com.c",
+      "runtime/web/vsemu_wgsl.inc",
+      "web/src/gpu/wgsl.ts"
+    ],
+    "implementation": "Bind immutable FLOAT3/FLOAT4 map declarations on SetFVF for both active programmable shaders and fixed conversion; preserve texture components and use projective sampling in generated/fallback fixed fragment shaders.",
+    "evidence": "Read-only PC 1.4 road-pass trace, user browser capture of VS1/PS1 with FVF20142 and stale declaration088004E0, and local command-line shader dump showing FLOAT2 UV declaration and existing PS1 projection; see docs/minimap-rendering.md.",
+    "reuse": "Pinned th0mk/nfsu2-web renderer and existing tcoord helper; existing MIT notice retained. D9VK issue 197 used for symptom comparison only; no D9VK code reused.",
+    "validation": "Authored-vertex FVF declaration smoke with actual CPU shader execution and generated WGSL inspection; Wasm link and browser bundle. User confirmed the minimap works after testing build nfsu1-local-29bd80b573e6; no browser operated by the agent."
   }
 }

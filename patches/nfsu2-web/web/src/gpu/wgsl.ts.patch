@@ -1,0 +1,13 @@
+--- a/web/src/gpu/wgsl.ts
++++ b/web/src/gpu/wgsl.ts
+@@ -56,7 +56,9 @@
+ @group(1) @binding(4) var s0: sampler;
+ override ALPHA_FUNC: u32 = 7u;
+ @fragment fn fs_ff(i: VOut) -> @location(0) vec4f {
+-  var c = i.col0 * textureSample(t0, s0, ${cube ? 'i.uv0.xyz' : 'i.uv0.xy'});
++  let mode = i32(P.proj[0]) >> 4u;
++  let uv = i.uv0.xy / select(select(1.0, i.uv0.z, mode == 1), i.uv0.w, mode == 2);
++  var c = i.col0 * textureSample(t0, s0, ${cube ? 'i.uv0.xyz' : 'uv'});
+   if (ALPHA_FUNC == 7u && c.a < P.aref) { discard; }
+   return vec4f(mix(P.fog.rgb, c.rgb, mix(1.0, saturate(i.fog), P.fog.a)), c.a);
+ }`;

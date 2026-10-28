@@ -144,3 +144,34 @@ void __wrap_sub_00410e50(CPU *c){
         initial_applied = 1;
     }
 }
+
+/* Attribute GPU submissions to the road routine itself. Markers share its
+ * polygon helper, so FVF/caller matching alone cannot identify the road. */
+static unsigned map_active, map_capture, map_draws;
+int nfsu1_minimap_draw(void){
+    if (!map_active) return 0;
+    map_draws++;
+    return map_capture && map_draws <= 4u;
+}
+
+extern void __real_sub_0058f090(CPU *);
+void __wrap_sub_0058f090(CPU *c){
+    static unsigned captures[16];
+    uint32_t map = mem_is_committed(c->esp + 7u) ? MR32(c->esp + 4u) : 0;
+    int valid = map && mem_is_committed(map) && mem_is_committed(map + 0xc7u);
+    uint32_t style = valid ? MR32(map + 0xc4u) : 16u;
+    unsigned previous_active = map_active, previous_capture = map_capture;
+    unsigned previous_draws = map_draws;
+    map_active = 1;
+    map_capture = style < 16u && captures[style]++ < 2u;
+    map_draws = 0;
+    if (map_capture)
+        fprintf(stderr, "[nfsu1 road-pass] begin map=%08x style=%u road-texture=%08x\n",
+                map, style, valid ? MR32(map + 0x78u) : 0u);
+    __real_sub_0058f090(c);
+    if (map_capture)
+        fprintf(stderr, "[nfsu1 road-pass] end style=%u submissions=%u\n", style, map_draws);
+    map_active = previous_active;
+    map_capture = previous_capture;
+    map_draws = previous_draws;
+}

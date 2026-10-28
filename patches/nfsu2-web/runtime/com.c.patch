@@ -9,7 +9,44 @@
  /* The rows are derived from the VIEW's (window / full screen) aspect:
   * "1080p" = 1080 lines at the view's aspect.  So the drawable fills the
   * window without bars, and the resolution only changes the quality.  The
-@@ -1290,7 +1290,7 @@
+@@ -1028,6 +1028,36 @@
+     }
+ }
+
++/* SetFVF replaces the declaration even with a programmable vertex shader.
++ * The map keeps VS/PS 1 bound; retaining its preceding FLOAT2 declaration
++ * loses q before the shader can pass it to projected texture sampling.
++ * Cache immutable objects so CPU and GPU layout caches see distinct keys. */
++static uint32_t nfsu1_map_fvf_decl(uint32_t fvf){
++    static uint32_t declarations[2];
++    if (fvf != 0x10142u && fvf != 0x20142u) return 0;
++    unsigned mode = fvf == 0x20142u;
++    if (!declarations[mode]){
++        uint32_t declaration = com_new(IF_VDECL, 32u);
++        uint32_t elements = gbuf_alloc(32u);
++        if (!declaration || !elements) return 0;
++        memset(g_mem + elements, 0, 32u);
++        MR8(elements + 4u) = 2u; /* POSITION0 FLOAT3 */
++        MR16(elements + 8u + 2u) = 12u;
++        MR8(elements + 8u + 4u) = 4u; /* COLOR0 D3DCOLOR */
++        MR8(elements + 8u + 6u) = 10u;
++        MR16(elements + 16u + 2u) = 16u;
++        MR8(elements + 16u + 4u) = mode ? 3u : 2u; /* TEXCOORD0 */
++        MR8(elements + 16u + 6u) = 5u;
++        MR16(elements + 24u) = 0xffu;
++        MR8(elements + 24u + 4u) = 17u; /* D3DDECL_END */
++        CH_FLAGS(declaration) |= CF_DEVICE;
++        MR32(declaration + 4u) = elements;
++        MR32(declaration + 8u) = 32u;
++        declarations[mode] = declaration;
++    }
++    return declarations[mode];
++}
++
+ /* --- DRAWDUMP=<frame#>: dump every draw of that frame in detail --- */
+ static uint32_t g_present_no;
+ #define ZSURF_MAGIC 0x5A535246u   /* 'ZSRF': Z surface object, +52 = id */
+@@ -1290,7 +1320,7 @@
   * Reset MUST use the same rule: Reset used to pass the raw value through,
   * so changing the resolution in game silently undid the correction. */
  static void res_pick(uint32_t gw, uint32_t gh, uint32_t *dw, uint32_t *dh){
@@ -18,7 +55,7 @@
      static uint32_t rw = 0, rh = 0;
      *dw = gw; *dh = gh;
      /* The cursor must be in the space the game BELIEVES in, not on the drawable. */
-@@ -1316,6 +1316,10 @@
+@@ -1316,6 +1346,10 @@
              metal_native_size(bw, bh, &nw, &nh);
              if (nw > bw || nh > bh){ aw = nw; ah = nh; } }
      }
@@ -29,7 +66,7 @@
      if (!aw || !ah){
          /* No override: device = what the game asked for.  Values left over
           * from an earlier CreateDevice must not go stale after a Reset
-@@ -1326,9 +1330,18 @@
+@@ -1326,9 +1360,18 @@
          return;
      }
      g_req_w = gw; g_req_h = gh;
@@ -51,7 +88,7 @@
      if (gw && gh){
          float ga = (float)gw / (float)gh, da = (float)aw / (float)ah;
          g_aspfix = ga / da;
-@@ -1336,8 +1349,6 @@
+@@ -1336,8 +1379,6 @@
          if (ov && *ov) g_aspfix = (float)atof(ov);
      }
      *dw = aw; *dh = ah;
@@ -60,7 +97,7 @@
      ws_set_mapping(g_aspfix);
      { void metal_set_ui_aspect(float, float); metal_set_ui_aspect(ws_ui_x(), ws_ui_y()); }
      fprintf(stderr,"com: device resolution %ux%u -> %ux%u (aspfix=%.4f)\n",
-@@ -1566,6 +1577,112 @@
+@@ -1566,6 +1607,112 @@
   * it returns 0 and the caller falls back to the old (index expansion) path. */
  static struct { uint32_t n, vbo, ibo, isz; int32_t base; uint64_t gh; } g_ix;
  static uint64_t g_dip_ix = 0, g_dip_ixfb[6];
@@ -173,19 +210,53 @@
  static int draw_up(uint32_t pt, uint32_t nv, uint32_t vp, uint32_t stride){
      uint64_t _t0 = now_ns();
      static TVert tv[4096];
-@@ -1579,0 +1697,2 @@
+@@ -1577,6 +1724,8 @@
+     const VSProg *prog = (g_cur_vs && g_cur_vs < MAXVS) ? g_vsprog[g_cur_vs] : 0;
+     vsk = fixmat_apply(vsk);
+     vsk = aspect_apply(vsk, prog);
 +    { void metal_set_fe_canvas(float);
 +      metal_set_fe_canvas(nfsu1_fe_canvas(vsk, prog)); }
-@@ -1642,6 +1761,8 @@
+
+     /* Declaration parsing ONCE per (declaration, shader).
+      * Previously every draw rebuilt it from scratch, reading up to 32
+@@ -1642,6 +1791,27 @@
      const DElem *el = dcc[dci].el; int nel = dcc[dci].nel;
      int p_off = dcc[dci].p_off, p_type = dcc[dci].p_type, c_off = dcc[dci].c_off,
          c_type = dcc[dci].c_type, t_off = dcc[dci].t_off, t_type = dcc[dci].t_type;
 +
 +    nfsu1_depth_draw(vp, stride, vsk, prog, el, nel, p_off, p_type);
- 
++
++    /* Capture only draws inside the actual road routine, even if inherited
++     * shader state takes a different vertex path from the expected FVF. */
++    { extern int nfsu1_minimap_draw(void);
++      if (nfsu1_minimap_draw()){
++        if (stride >= 32u && vp && mem_is_committed(vp + 31u)){
++            uint32_t caller = g_com_cpu && mem_is_committed(g_com_cpu->ebp + 7u)
++                ? MR32(g_com_cpu->ebp + 4u) : 0u;
++            fprintf(stderr, "[nfsu1 map] frame=%u caller=%08x vs=%u ps=%d decl=%08x fvf=%08x tex=%u pt=%u nv=%u rt=%u z=%u write=%u cmp=%u cull=%u clip=%u blend=%u/%u/%u alpha=%u/%u/%u tss0=%u/%u/%u alpha0=%u/%u/%u projected=%x uvq=(%.7g,%.7g,%.7g,%.7g)\n",
++                    g_present_no, caller, g_cur_vs, g_cur_ps_id, g_cur_decl,
++                    g_cur_fvf, g_cur_tex, pt, nv, g_cur_rt,
++                    g_rs[7], g_rs[14], g_rs[23], g_rs[22], g_rs[136],
++                    g_rs[27], g_rs[19], g_rs[20], g_rs[15], g_rs[25], g_rs[24],
++                    g_tss_raw[0][1], g_tss_raw[0][2], g_tss_raw[0][3],
++                    g_tss_raw[0][4], g_tss_raw[0][5], g_tss_raw[0][6], g_tss_raw[0][24],
++                    (double)MRF32(vp+16u), (double)MRF32(vp+20u),
++                    (double)MRF32(vp+24u), (double)MRF32(vp+28u));
++        }
++    } }
+
      /* ---------------- GPU vertex shader (GPUVS) ----------------
       * Measured: ~45% of the run time was in the CPU vs_run interpreter,
-@@ -2285,7 +2406,12 @@
+@@ -1760,7 +1930,7 @@
+             out->r1=0.f; out->g1=0.f; out->b1=0.f; out->a1=0.f;
+             for (int ts = 0; ts < 4; ts++){
+                 out->t[ts][0]=uv[0]; out->t[ts][1]=uv[1];
+-                out->t[ts][2]=0.f;   out->t[ts][3]=1.f;
++                out->t[ts][2]=uv[2]; out->t[ts][3]=uv[3];
+             }
+         }
+     }
+@@ -2285,7 +2455,12 @@
                             MR32(pm)   = ml[0];
                             MR32(pm+4) = ml[1];
                             MR32(pm+8) = 60;
@@ -199,7 +270,31 @@
                     r=0; } }
          else if (MID(GetAdapterDisplayMode)){
              uint32_t pm=A(c,2);
-@@ -3962,6 +4088,10 @@
+@@ -3360,7 +3535,9 @@
+                 g_vsk.b[sr+k]=(int32_t)MR32(o);
+             }
+             r=0; }
+-        else if (MID(SetVertexDeclaration)){ g_cur_decl=A(c,1); g_raw_decl=g_cur_decl; r=0; }
++        else if (MID(SetVertexDeclaration)){
++            g_cur_decl=A(c,1); g_raw_decl=g_cur_decl;
++            g_cur_fvf = g_raw_fvf = 0; r=0; }
+         else if (MID(Reset)){
+             /* (this, D3DPRESENT_PARAMETERS*)
+              * The game resets the device when resolution/graphics detail changes.
+@@ -3430,7 +3607,11 @@
+                 g_ss_vb = 0; g_ib_obj = 0;
+             }
+             r=0; }
+-        else if (MID(SetFVF)){ g_cur_fvf=A(c,1); g_raw_fvf=g_cur_fvf; r=0; }
++        else if (MID(SetFVF)){
++            g_cur_fvf=A(c,1); g_raw_fvf=g_cur_fvf;
++            uint32_t declaration = nfsu1_map_fvf_decl(g_cur_fvf);
++            if (declaration) g_cur_decl = g_raw_decl = declaration;
++            r=0; }
+         else if (MID(CreateTexture)){
+             /* (this,W,H,Levels,Usage,Format,Pool,ppTex,pShared) */
+             uint32_t w=A(c,1), h=A(c,2), lev=A(c,3), usage=A(c,4), fmt=A(c,5), pool=A(c,6);
+@@ -3962,6 +4143,10 @@
                if (!(flags & 0x1u)){
                    audio_init();
                    MR32(b+28) = (uint32_t)audio_register(MR32(b+8), bytes, rate, chans, bits);
@@ -210,7 +305,7 @@
                } }
              if(pp) MR32(pp)=b; r=0; }
          else if (MID(GetCaps)){
-@@ -4072,6 +4202,17 @@
+@@ -4072,6 +4257,17 @@
              if(pn2){ mem_commit(pn2,4); MR32(pn2)= b2; }
              r=0; }
          else if (MID(Unlock)){
@@ -228,9 +323,9 @@
              /* VOICELOG=1: the game's OWN sound channel table.
               * sub_00725378 walks the table with address [0x8b466c], stride
               * 0x90, count [0x8b460c] (int16); it tests byte +0x26 as "in use".
-@@ -4729,7 +4870,7 @@
+@@ -4729,7 +4925,7 @@
  }
- 
+
  static void fill_caps(uint32_t p){
 -    mem_commit(p,0x150); memset(g_mem+p,0,0x150);
 +    mem_commit(p,0x130); memset(g_mem+p,0,0x130); /* sizeof(D3DCAPS9) */

@@ -38,6 +38,9 @@ graphics, input, saves, date/time, audio, startup movies, and shader handling.
 The input overlay extends the pinned keyboard event rings with a separate
 driving stream; original physical keys and text remain available to menus and
 chat. The upstream MIT notice remains in `patches/nfsu2-web.LICENSE`.
+The minimap projection overlay adapts that same pinned renderer and its existing
+WGSL coordinate helper. Its road-pass trace comes from read-only local PC 1.4
+analysis; D9VK issue #197 is a symptom reference only, with no D9VK code reused.
 The focus-loss option reuses the pinned upstream `background` setting, browser
 focus events and runtime lifecycle, with Pause as the launcher default and an
 exposed Keep running choice. The lifecycle overlay uses PC 1.4’s own background

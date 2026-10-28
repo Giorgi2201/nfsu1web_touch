@@ -66,7 +66,7 @@ CFLAGS="$TARGET $OPT $FEAT $DEFS $EXTRA -fno-delete-null-pointer-checks -include
 SHARDFLAGS="-DNFSU2_GUEST_OBJ"
 HDRSUM="$( (cat runtime/cpu.h runtime/nfsu1_profile.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHARDFLAGS") | shasum | cut -c1-16)"
 CACHE_KEYS="$ROOT/tools/guest_object_cache.py"
-NOINLINE_WRAPS='sub_0066e8b0|sub_00547db0|sub_00547dc0|sub_00548610|sub_00546d70|sub_00546e00|sub_00547ae0|sub_0054e2f0|sub_0043a220|sub_0043a830|sub_004390d0|sub_005647d0|sub_004f6360'
+NOINLINE_WRAPS='sub_0066e8b0|sub_00547db0|sub_00547dc0|sub_00548610|sub_00546d70|sub_00546e00|sub_00547ae0|sub_0054e2f0|sub_0043a220|sub_0043a830|sub_004390d0|sub_005647d0|sub_004f6360|sub_0058f090'
 export CC OBJDUMP CFLAGS SHARDFLAGS OUT FULL MEMCHECK OBJCACHE HDRSUM CACHE_KEYS NOINLINE_WRAPS
 
 { (cd gen/all && ls shard_*.c fntab.c impargs.c $([ -f stubs.c ] && echo stubs.c) | sed "s|^|all |")
@@ -228,7 +228,7 @@ PAGES=$(( INITIAL_MB * 16 ))
 # time independently of the renderer. The Wasm linker wraps both
 # direct calls and function-table references, including calls in the same
 # shard. Refuse a build that optimized away a required wrapped call.
-for entry in sub_0041c680 sub_00410e50 sub_0066e8b0 sub_004f6360 sub_004f2cb0; do
+for entry in sub_0041c680 sub_00410e50 sub_0066e8b0 sub_004f6360 sub_004f2cb0 sub_0058f090; do
   wrapper_refs=0
   for src in gen/all/shard_*.c; do
     if grep -Fq "$entry(c)" "$src"; then
@@ -249,6 +249,7 @@ $CC $TARGET $OPT $FEAT $EXTRA -o "$OUT/nfsu1.wasm" "${OBJS[@]}" \
   -Wl,--wrap=sub_00546d70,--wrap=sub_00546e00,--wrap=sub_00547ae0,--wrap=sub_0054e2f0 \
   -Wl,--wrap=sub_0043a220,--wrap=sub_0043a830,--wrap=sub_004390d0 \
   -Wl,--wrap=sub_005647d0,--wrap=sub_004f6360,--wrap=sub_004f2cb0 \
+  -Wl,--wrap=sub_0058f090 \
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
   -Wl,--initial-memory=$(( INITIAL_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \
