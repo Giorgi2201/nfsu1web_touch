@@ -183,7 +183,7 @@
          <summary>Edit settings.ini as text</summary>
          <textarea id="settings-text" spellcheck="false" rows="20" wrap="off" aria-label="settings.ini"></textarea>
          <div class="row">
-@@ -150,8 +86,24 @@
+@@ -150,8 +86,25 @@
          </div>
        </details>
      </section>
@@ -199,6 +199,7 @@
 +          <dl class="keys"><div><dt><kbd>F10</kbd></dt><dd>Turn key remapping off or on while playing</dd></div><div><dt><kbd>F9</kbd></dt><dd>Open the game menu</dd></div><div><dt><kbd>Enter</kbd></dt><dd>Launch the game</dd></div></dl>
 +          <p class="hint">Hold Escape to leave fullscreen.</p>
 +        </div>
++        <div id="touch-controls"></div>
 +        <div id="keyboard-controls"></div>
 +        <div id="controller-settings"></div>
 +      </section>
@@ -209,7 +210,7 @@
        <h2 id="game-data-title">Game data on this PC</h2>
        <p class="hint" id="cache-info">Counting…</p>
        <div class="bar" id="data-bar" role="progressbar" aria-label="Game data preload" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
-@@ -163,13 +114,31 @@
+@@ -163,14 +116,33 @@
        </div>
        <p class="msg" id="data-msg" role="status"></p>
      </section>
@@ -224,14 +225,14 @@
 +        <p class="msg" id="saves-msg" role="status"></p>
 +        <p class="msg warn" id="storage-note" hidden></p>
 +      </section>
--  </div>
 +      <p class="screen-note">Game data is cached in this browser. Clearing browser site data can also remove your local settings and saves.</p>
 +    </div>
- 
++
+   </div>
+-
 -  <footer class="foot">
 -    <p class="hint">Contact for rights holders: <a href="mailto:legal@nfsu2.xyz">legal@nfsu2.xyz</a></p>
 -  </footer>
-+  </div>
 +  <div hidden>
 +<section class="panel" id="online" aria-labelledby="online-title" hidden>
 +      <h2 id="online-title">Online</h2>
@@ -243,9 +244,11 @@
  
 +
  <div class="stage" id="stage" hidden>
++  <button type="button" class="stage-menu" id="stage-menu" aria-label="Menu" data-nfsu2-ui="" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg></button>
    <div class="hud-fps" id="fps" hidden></div>
    <div class="toast" id="toast" hidden></div>
-@@ -194,7 +164,6 @@
+   <div class="toast away" id="away" role="status" hidden></div>
+@@ -194,7 +166,6 @@
    <div class="menu-actions">
      <button type="button" class="btn selected" data-act="resume">Back to the game</button>
      <button type="button" class="btn" data-act="fullscreen">Full screen</button>

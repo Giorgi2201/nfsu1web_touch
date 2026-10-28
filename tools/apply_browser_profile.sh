@@ -41,10 +41,11 @@ copy_host() {
   install -d "$UPSTREAM/web/src/app"
   install -m 0644 "$ROOT/browser/menu.ts" "$UPSTREAM/web/src/app/menu.ts"
   install -m 0644 "$ROOT/browser/keyboard.ts" "$UPSTREAM/web/src/app/keyboard.ts"
+  install -m 0644 "$ROOT/browser/touch.ts" "$UPSTREAM/web/src/app/touch.ts"
 }
 
 remove_host() {
-  rm -f "$UPSTREAM/web/src/app/menu.ts" "$UPSTREAM/web/src/app/keyboard.ts"
+  rm -f "$UPSTREAM/web/src/app/menu.ts" "$UPSTREAM/web/src/app/keyboard.ts" "$UPSTREAM/web/src/app/touch.ts"
 }
 
 if [[ "$REVERT" -eq 1 ]]; then
