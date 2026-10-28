@@ -1,7 +1,14 @@
 --- a/web/index.html
 +++ b/web/index.html
-@@ -5,143 +5,79 @@
- <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+@@ -2,146 +2,85 @@
+ <html lang="en">
+ <head>
+ <meta charset="utf-8">
+-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
++<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
++<meta name="mobile-web-app-capable" content="yes">
++<meta name="apple-mobile-web-app-capable" content="yes">
++<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
  <meta name="color-scheme" content="dark">
  <meta name="theme-color" content="#0d0d0d">
 -<title>Underground 2 Revived</title>
@@ -183,7 +190,7 @@
          <summary>Edit settings.ini as text</summary>
          <textarea id="settings-text" spellcheck="false" rows="20" wrap="off" aria-label="settings.ini"></textarea>
          <div class="row">
-@@ -150,8 +86,25 @@
+@@ -150,8 +89,25 @@
          </div>
        </details>
      </section>
@@ -210,7 +217,7 @@
        <h2 id="game-data-title">Game data on this PC</h2>
        <p class="hint" id="cache-info">Counting…</p>
        <div class="bar" id="data-bar" role="progressbar" aria-label="Game data preload" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
-@@ -163,14 +116,33 @@
+@@ -163,14 +119,33 @@
        </div>
        <p class="msg" id="data-msg" role="status"></p>
      </section>
@@ -248,7 +255,7 @@
    <div class="hud-fps" id="fps" hidden></div>
    <div class="toast" id="toast" hidden></div>
    <div class="toast away" id="away" role="status" hidden></div>
-@@ -194,7 +166,6 @@
+@@ -194,7 +169,6 @@
    <div class="menu-actions">
      <button type="button" class="btn selected" data-act="resume">Back to the game</button>
      <button type="button" class="btn" data-act="fullscreen">Full screen</button>

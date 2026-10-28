@@ -60,6 +60,12 @@ export function noPinchZoom(): void {
   for (const t of ['gesturestart', 'gesturechange']) {
     document.addEventListener(t, e => e.preventDefault(), { passive: false });
   }
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = performance.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
 }
 
 export function keepScreenOn(log: (s: string) => void): () => void {
@@ -187,7 +193,15 @@ function sizeSetting(store: string, sizes: readonly Size[], auto: () => number):
     on: fn => addEventListener(store, fn),
     check() { const a = auto(); if (a !== autoNow) { autoNow = a; changed(); } },
   };
-  addEventListener('resize', () => self.check());
+  const onScreenChange = () => {
+    window.scrollTo(0, 0);
+    self.check();
+  };
+  addEventListener('resize', onScreenChange);
+  addEventListener('orientationchange', onScreenChange);
+  if (typeof screen !== 'undefined' && screen.orientation) {
+    screen.orientation.addEventListener('change', onScreenChange);
+  }
   return self;
 }
 
@@ -418,8 +432,21 @@ export class TouchControls {
     root.addEventListener('pointercancel', this.onUp);
     root.addEventListener('contextmenu', e => e.preventDefault());
 
+    const onOrient = () => {
+      window.scrollTo(0, 0);
+      this.dropFingers();
+      this.away = false;
+      this.applySize();
+      this.update();
+    };
+    addEventListener('orientationchange', onOrient);
+    if (typeof screen !== 'undefined' && screen.orientation) {
+      screen.orientation.addEventListener('change', onOrient);
+    }
+
     stage.addEventListener('pointerdown', e => {
       if (e.pointerType !== 'touch') return;
+      window.scrollTo(0, 0);
       this.seen = true;
       this.away = false;
       this.touchedAt = performance.now();

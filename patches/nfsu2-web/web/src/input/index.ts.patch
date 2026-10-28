@@ -155,7 +155,7 @@
      try { element.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer */ }
      const [x, y] = pos(e);
      push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], x, y);
-@@ -211,9 +256,55 @@
+@@ -211,9 +256,31 @@
      e.preventDefault();
    }
    function onPointerUp(e: PointerEvent) {
@@ -166,24 +166,10 @@
      try { element.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
 +  }
 +
-+  // ---- touch: one finger is the mouse, two turn the car --------------------------------
-+  let finger = -1, second = -1;
-+  const fingers = new Map<number, [number, number]>();
-+  const between = (): [number, number] => {
-+    const a = fingers.get(finger)!, b = fingers.get(second)!;
-+    return [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)];
-+  };
++  // ---- touch: primary finger acts as mouse for UI clicks (car rotation disabled) ----
++  let finger = -1;
 +  function onFingerDown(e: PointerEvent) {
-+    fingers.set(e.pointerId, pos(e));
-+    if (!e.isPrimary) {
-+      if (finger < 0 || second >= 0) return;
-+      second = e.pointerId;
-+      push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 0);
-+      push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...between());
-+      push(IEV_MOUSE_DOWN, 0, 0, flagsOf(e), [], 2);
-+      buttons = (buttons & ~1) | 4;
-+      return;
-+    }
++    if (!e.isPrimary) return;
 +    finger = e.pointerId;
 +    push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e) | IKF_TOUCH, [], ...pos(e));
 +    push(IEV_MOUSE_DOWN, 0, 0, flagsOf(e), [], 0);
@@ -192,19 +178,9 @@
 +    e.preventDefault();
 +  }
 +  function onFingerMove(e: PointerEvent) {
-+    if (!fingers.has(e.pointerId)) return;
-+    fingers.set(e.pointerId, pos(e));
-+    if (second >= 0) { if (e.pointerId === finger || e.pointerId === second) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...between()); }
-+    else if (e.pointerId === finger) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...pos(e));
++    if (e.pointerId === finger) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...pos(e));
 +  }
 +  function onFingerUp(e: PointerEvent) {
-+    fingers.delete(e.pointerId);
-+    if (second >= 0 && (e.pointerId === finger || e.pointerId === second)) {
-+      finger = second = -1;
-+      push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 2);
-+      buttons &= ~4;
-+      return;
-+    }
 +    if (e.pointerId !== finger) return;
 +    finger = -1;
 +    push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 0);
@@ -212,7 +188,7 @@
    }
    function onWheel(e: WheelEvent) {
      if (detached) return;
-@@ -321,14 +412,28 @@
+@@ -321,14 +388,28 @@
        return { 'input events': s.events, 'keys held': s.keysHeld, 'pad connected': s.pad ? 1 : 0, 'input dropped': s.dropped };
      },
      lastInput() { return refused ? null : lastUse; },
@@ -241,7 +217,7 @@
        kbTarget.removeEventListener('keydown', onKeyDown as EventListener, { capture: true });
        kbTarget.removeEventListener('keyup', onKeyUp as EventListener, { capture: true });
        for (const [t, f] of listeners) element.removeEventListener(t, f);
-@@ -340,6 +445,10 @@
+@@ -340,6 +421,10 @@
      },
    };
  
