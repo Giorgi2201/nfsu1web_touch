@@ -132,6 +132,28 @@ export function setLevelHorizon(on: boolean): void {
 }
 export function onLevelHorizon(fn: () => void): void { addEventListener(LEVEL_EVENT, fn); }
 
+const GEARS_STORE = 'nfsu1-touch-gears', GEARS_EVENT = 'nfsu1-touch-gears';
+export type GearsOpt = 'auto' | 'show' | 'hide';
+let gearsSetting: GearsOpt = (() => {
+  try {
+    const g = localStorage.getItem(GEARS_STORE);
+    return g === 'show' || g === 'hide' ? g : 'auto';
+  } catch {
+    return 'auto';
+  }
+})();
+export function gears(): GearsOpt { return gearsSetting; }
+export function setGears(g: GearsOpt): void {
+  if (g === gearsSetting) return;
+  gearsSetting = g;
+  try {
+    if (g === 'auto') localStorage.removeItem(GEARS_STORE);
+    else localStorage.setItem(GEARS_STORE, g);
+  } catch {}
+  dispatchEvent(new Event(GEARS_EVENT));
+}
+export function onGears(fn: () => void): void { addEventListener(GEARS_EVENT, fn); }
+
 export type Size = 'auto' | number;
 export interface SizeSetting {
   readonly sizes: readonly Size[];
@@ -358,6 +380,7 @@ export class TouchControls {
 
     this.relabel();
     onSteering(() => this.applySteering(steering()));
+    onGears(() => this.update());
     stage.append(root);
 
     // Mobile text entry bar for profile/save names
@@ -526,7 +549,8 @@ export class TouchControls {
     const autoMode: Mode = !on ? '' : (this.drive & 3) > 0 && (this.drive & 8) === 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
     const mode: Mode = forcedMode ?? autoMode;
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
-    this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
+    const showGears = gearsSetting === 'show' ? true : gearsSetting === 'hide' ? false : (this.drive & 4) !== 0;
+    this.root.toggleAttribute('data-gears', showGears);
     this.setMode(mode);
   }
 
@@ -866,7 +890,47 @@ export function mountTouchSettings(root: HTMLElement | null): void {
   }
   modeCtl.append(modeSeg);
   modeRow.append(modeLabel, modeCtl, modeHelp);
-  group.append(heading, note, modeRow);
+
+  // Gears setting row (Auto-detect / Manual (Show) / Automatic (Hide))
+  const gearsRow = document.createElement('div');
+  gearsRow.className = 'set';
+  const gearsLabel = document.createElement('span');
+  gearsLabel.className = 'set-label';
+  gearsLabel.textContent = 'Gears';
+  const gearsHelp = document.createElement('span');
+  gearsHelp.className = 'set-help';
+  const gearsCtl = document.createElement('div');
+  gearsCtl.className = 'set-control';
+  const gearsSeg = document.createElement('div');
+  gearsSeg.className = 'seg';
+  gearsSeg.setAttribute('role', 'radiogroup');
+  gearsSeg.setAttribute('aria-label', 'Gears mode');
+  for (const [val, text, help] of [
+    ['auto', 'Auto', 'Detect transmission automatically (hide for automatic, show for manual/drag).'],
+    ['show', 'Show', 'Always show Shift Up / Down buttons while driving.'],
+    ['hide', 'Hide', 'Always hide Shift Up / Down buttons.'],
+  ] as const) {
+    const opt = document.createElement('label');
+    opt.className = 'opt';
+    const inp = document.createElement('input');
+    inp.type = 'radio';
+    inp.name = `${uid}-gears`;
+    inp.value = val;
+    inp.checked = gearsSetting === val;
+    inp.addEventListener('change', () => {
+      setGears(val as GearsOpt);
+      gearsHelp.textContent = help;
+    });
+    if (inp.checked) gearsHelp.textContent = help;
+    const txt = document.createElement('span');
+    txt.textContent = text;
+    opt.append(inp, txt);
+    gearsSeg.append(opt);
+  }
+  gearsCtl.append(gearsSeg);
+  gearsRow.append(gearsLabel, gearsCtl, gearsHelp);
+
+  group.append(heading, note, modeRow, gearsRow);
 
   // Steering mode row
   const steerRow = document.createElement('div');

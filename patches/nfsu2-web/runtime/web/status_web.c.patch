@@ -8,7 +8,7 @@
  #include <pthread.h>
  #include <string.h>
  #include <time.h>
-@@ -53,13 +54,16 @@
+@@ -53,13 +54,35 @@
   * app review, finding 1). */
  static void *status_main(void *unused){
      (void)unused;
@@ -23,14 +23,33 @@
 -        host_status_set_n(slot, v, 5);
 +        long frames = metal_frames();
 +        int in_race = mem_is_committed(0x0077A920u) && MR32(0x0077A920u) == 6u;
++        int drive = 0;
++        if (in_race){
++            drive = 1;
++            int manual = 0;
++            if (mem_is_committed(0x00748F78u) && MR32(0x00748F78u) == 1u) manual = 1;
++            if (mem_is_committed(0x0073619Cu)){
++                uint32_t rcfg = MR32(0x0073619Cu);
++                if (rcfg && mem_is_committed(rcfg) && MR32(rcfg) == 4u) manual = 1;
++            }
++            if (manual) drive |= 4;
++
++            int paused = 0;
++            if (mem_is_committed(0x007796A8u) && (int32_t)MR32(0x007796A8u) > 0) paused = 1;
++            if (mem_is_committed(0x007361F0u)){
++                uint32_t rdir = MR32(0x007361F0u);
++                if (rdir && mem_is_committed(rdir) && MR32(rdir) != 1u) paused = 1;
++            }
++            if (paused) drive |= 8;
++        }
 +        double v[6] = { (double)frames, ts.tv_sec * 1e3 + ts.tv_nsec * 1e-6, (double)metal_frames_dropped(),
 +                        (double)metal_tris(), (double)metal_tex_created() - (double)metal_tex_released(),
-+                        in_race ? 5.0 : 0.0 };
++                        (double)drive };
 +        host_status_set_n(slot, v, 6);
          usleep(g_st.period_ms * 1000u);
      }
      return 0;
-@@ -68,7 +72,7 @@
+@@ -68,7 +91,7 @@
  /* main_web.c, before the guest starts */
  void status_web_start(void){
      g_st.magic = HOST_STATUS_MAGIC;
