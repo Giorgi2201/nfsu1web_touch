@@ -288,6 +288,8 @@ const ICONS = {
   menuDown: '<path class="fill" d="M5 8l7 9 7-9z"/>',
   nitro: '<path class="fill" d="M13.5 3C9.5 6.5 8 10 9 13c-2-1-2.5-3-2-4.5C4.5 11 4 15 6.5 18c1.5 1.8 3.6 3 5.8 3 3.4 0 6.2-2.6 6.2-6 0-3.2-2.2-5.6-3.5-7.5-.3 1.5-1 2.5-2 3 .8-2.2.8-4.8.5-7.5z"/>',
   kbd: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h10"/>',
+  gamepad: '<rect x="2" y="6" width="20" height="12" rx="4"/><path d="M6 12h4M8 10v4M15 11h.01M17 13h.01"/>',
+  wheel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M3 12h6.5M14.5 12H21M6.5 17.5l4-3.5M17.5 17.5l-4-3.5"/>',
 };
 
 export interface TouchDeps {
@@ -372,6 +374,7 @@ export class TouchControls {
     add('camera', 'Camera', svg(ICONS.camera), { keys: ['KeyC'] }, 'small');
     add('look', 'Look back', svg(ICONS.look), { keys: ['KeyB'] }, 'small');
     add('reset', 'Reset car', svg(ICONS.reset), { keys: ['KeyR'] }, 'small');
+    add('switch-mode', 'Switch Controls', svg(ICONS.gamepad), { act: () => this.toggleControlMode() }, 'small always');
     add('mode', 'Steering', svg(ICONS[this.steering]), { act: () => this.nextSteering() }, 'small');
     add('center', 'Straight ahead', svg(ICONS.center), { act: () => this.recenter() }, 'small');
     add('left', 'Steer left', svg(ICONS.left), { keys: ['ArrowLeft'], group: 'steer' }, 'big');
@@ -393,6 +396,7 @@ export class TouchControls {
     add('m-ok', 'OK', { text: 'OK' }, { keys: ['Enter'] }, 'menu wide');
 
     this.relabel();
+    this.updateSwitchButton();
     onSteering(() => this.applySteering(steering()));
     onGears(() => this.update());
     stage.append(root);
@@ -516,8 +520,12 @@ export class TouchControls {
       this.statusAt = now;
       const st = s.status?.read();
       if (st) {
+        const prevDrive = this.drive;
         this.drive = st.get('drive') ?? 0;
         this.frames = st.get('frames') ?? 0;
+        if ((prevDrive > 0 && this.drive === 0) || (prevDrive === 0 && this.drive > 0)) {
+          setForcedMode(null);
+        }
       }
     }
     if (!this.away && (s.input?.padPressed?.() ?? 0) > this.touchedAt) this.away = true;
@@ -571,10 +579,27 @@ export class TouchControls {
     this.session?.input?.viewRoll?.(roll);
   }
 
+  private toggleControlMode(): void {
+    const next: Mode = this.mode === 'drive' ? 'menu' : 'drive';
+    setForcedMode(next);
+    this.update();
+    this.deps.toast(next === 'menu' ? 'Menu controls' : 'Race controls', 1000);
+  }
+
+  private updateSwitchButton(): void {
+    const c = this.ctls.get('switch-mode');
+    if (!c) return;
+    const isDrive = this.mode === 'drive';
+    c.label = isDrive ? 'Switch to menu controls' : 'Switch to race controls';
+    c.el.setAttribute('aria-label', c.label);
+    c.el.setAttribute('title', c.label);
+    c.el.innerHTML = svg(isDrive ? ICONS.gamepad : ICONS.wheel);
+  }
+
   private update(): void {
     const on = !!this.session && this.seen && !this.away;
     const autoMode: Mode = !on ? '' : (this.drive & 3) > 0 && (this.drive & 8) === 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
-    const mode: Mode = forcedMode ?? autoMode;
+    const mode: Mode = !on ? '' : (forcedMode ?? autoMode);
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
     const showGears = gearsSetting === 'show' ? true : gearsSetting === 'hide' ? false : (this.drive & 4) !== 0;
     this.root.toggleAttribute('data-gears', showGears);
@@ -584,7 +609,11 @@ export class TouchControls {
   private setMode(mode: Mode): void {
     if (mode === this.mode) return;
     const drove = this.mode === 'drive';
-    for (const c of this.ctls.values()) { c.fingers.clear(); this.up(c, true); }
+    for (const c of this.ctls.values()) {
+      if (c.id === 'switch-mode') continue;
+      c.fingers.clear();
+      this.up(c, true);
+    }
     this.byFinger.clear();
     this.setSteerKey('');
     this.steerAcc = 0;
@@ -596,6 +625,7 @@ export class TouchControls {
     this.mode = mode;
     this.root.dataset.mode = mode;
     this.root.hidden = !mode;
+    this.updateSwitchButton();
     if (mode === 'drive' && this.steering === 'tilt') this.tiltOn();
     if (drove || mode === 'drive') this.sendPad();
   }

@@ -14,7 +14,7 @@
  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; touch-action: none; }
  .stage.cursor canvas { cursor: default; }
  .hud-fps {
-@@ -306,3 +311,269 @@
+@@ -306,3 +311,271 @@
  @media (prefers-reduced-motion: reduce) {
    *, *::before, *::after { transition: none !important; animation: none !important; }
  }
@@ -199,6 +199,7 @@
 +.tc[data-ctl="camera"] { left: calc(var(--l) + 112px * var(--ts)); }
 +.tc[data-ctl="look"] { left: calc(var(--l) + 168px * var(--ts)); }
 +.tc[data-ctl="reset"] { left: calc(var(--l) + 224px * var(--ts)); }
++.tc[data-ctl="switch-mode"] { left: calc(var(--l) + 280px * var(--ts)); border: 1.5px solid rgba(141, 207, 255, 0.4); color: var(--lime); }
 +.tc[data-ctl="mode"] { right: var(--r); }
 +.tc[data-ctl="center"] { right: calc(var(--r) + 56px * var(--ts)); }
 +.tc[data-ctl="left"] { left: var(--l); width: calc(80px * var(--ts)); height: calc(80px * var(--ts)); }
@@ -224,7 +225,8 @@
 +.touch:not([data-steering="buttons"]) :is([data-ctl="left"], [data-ctl="right"]),
 +.touch:not([data-steering="stick"]) .stick,
 +.touch:not([data-steering="tilt"]) [data-ctl="center"] { display: none; }
-+.touch[data-mode="menu"] > :not(.menu), .touch:not([data-mode="menu"]) > .menu { display: none; }
++.touch[data-mode="menu"] > :not(.menu, .always), .touch:not([data-mode="menu"]) > :is(.menu):not(.always) { display: none; }
++.touch .tc.always { display: flex !important; }
 +.tc.menu { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.2); }
 +.touch {
 +  --bar: calc((100vw - 100dvh * 4 / 3) / 2);
