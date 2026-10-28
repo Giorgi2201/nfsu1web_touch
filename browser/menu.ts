@@ -32,6 +32,7 @@ export function mountMenu() {
   mountTouchSettings(touchRoot);
   if (kbRoot) mountKeyboardControls(kbRoot);
   mountControllerSettings();
+  initPwaInstall();
   show('play');
 }
 
@@ -47,4 +48,23 @@ function mountControllerSettings(): void {
   };
   new MutationObserver(move).observe(source, { childList: true, subtree: true });
   move();
+}
+
+function initPwaInstall(): void {
+  let deferredInstall: any = null;
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    deferredInstall = e;
+    const btn = document.querySelector<HTMLButtonElement>('#pwa-install-btn');
+    if (btn) {
+      btn.style.display = 'inline-flex';
+      btn.onclick = async () => {
+        if (!deferredInstall) return;
+        deferredInstall.prompt();
+        const choice = await deferredInstall.userChoice;
+        if (choice.outcome === 'accepted') btn.style.display = 'none';
+        deferredInstall = null;
+      };
+    }
+  });
 }

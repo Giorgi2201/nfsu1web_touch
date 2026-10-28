@@ -14,7 +14,7 @@
  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; touch-action: none; }
  .stage.cursor canvas { cursor: default; }
  .hud-fps {
-@@ -306,3 +311,271 @@
+@@ -306,3 +311,365 @@
  @media (prefers-reduced-motion: reduce) {
    *, *::before, *::after { transition: none !important; animation: none !important; }
  }
@@ -285,4 +285,98 @@
 +  html[data-touch] .tc[data-ctl="up"] { left: calc(var(--l) + 96px * var(--ts)); }
 +  html[data-touch] .touch[data-steering="tilt"] .tc[data-ctl="hb"] { right: auto; left: calc(var(--l) + 100px * var(--ts)); bottom: calc(var(--b) + 24px * var(--ts)); }
 +  html[data-touch] .touch[data-steering="tilt"] .tc[data-ctl="nitro"] { right: calc(var(--r) + 100px * var(--ts)); bottom: calc(var(--b) + 24px * var(--ts)); }
++}
++
++/* Mobile PWA Fullscreen Guide Note */
++.mobile-pwa-note {
++  display: none;
++  margin-top: 24px;
++  background: linear-gradient(135deg, #141c22, #0d1419);
++  border: 1px solid #2b3942;
++  border-left: 3px solid var(--lime);
++  border-radius: 4px;
++  padding: 16px 20px;
++  color: var(--text);
++  font-size: 13px;
++  line-height: 1.5;
++}
++html[data-touch] .mobile-pwa-note {
++  display: block;
++}
++@media (max-width: 800px) {
++  .mobile-pwa-note {
++    display: block;
++  }
++}
++.pwa-header {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  margin-bottom: 6px;
++}
++.pwa-icon {
++  color: var(--lime);
++  flex-shrink: 0;
++}
++.pwa-title {
++  font-family: var(--display);
++  font-size: 16px;
++  font-weight: 800;
++  text-transform: uppercase;
++  letter-spacing: 0.04em;
++  color: var(--lime);
++}
++.pwa-desc {
++  color: var(--muted);
++  font-size: 12px;
++  margin: 0 0 14px 0;
++  line-height: 18px;
++}
++.pwa-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
++  gap: 12px;
++}
++.pwa-card {
++  background: rgba(0, 0, 0, 0.35);
++  border: 1px solid #222d35;
++  border-radius: 4px;
++  padding: 12px 14px;
++}
++.pwa-os {
++  display: flex;
++  align-items: center;
++  margin-bottom: 8px;
++}
++.pwa-tag {
++  font-family: var(--mono);
++  font-size: 11px;
++  font-weight: 700;
++  letter-spacing: 0.05em;
++  text-transform: uppercase;
++  color: var(--cyan);
++}
++.pwa-list {
++  margin: 0;
++  padding-left: 18px;
++  display: grid;
++  gap: 6px;
++  color: #cdd6db;
++  font-size: 12px;
++}
++.pwa-list li {
++  line-height: 17px;
++}
++.pwa-list strong {
++  color: #fff;
++}
++.pwa-badge {
++  display: inline-block;
++  padding: 0 4px;
++  background: #1b262e;
++  border: 1px solid #364652;
++  border-radius: 3px;
++  font-size: 11px;
++  color: var(--lime);
++  font-family: var(--mono);
 +}

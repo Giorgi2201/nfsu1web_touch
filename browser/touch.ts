@@ -49,11 +49,18 @@ export function touchFirst(): boolean {
 }
 
 export function markTouch(): void {
-  if (typeof matchMedia !== 'function') return;
-  const q = matchMedia('(pointer: coarse)');
-  const set = () => document.documentElement.toggleAttribute('data-touch', q.matches);
+  const isTouch = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
+    || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
+    || ('ontouchstart' in window);
+  const set = () => {
+    const coarse = typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)').matches : isTouch;
+    document.documentElement.toggleAttribute('data-touch', coarse || isTouch);
+  };
   set();
-  q.addEventListener?.('change', set);
+  if (typeof matchMedia === 'function') {
+    const q = matchMedia('(pointer: coarse)');
+    q.addEventListener?.('change', set);
+  }
 }
 
 export function noPinchZoom(): void {
