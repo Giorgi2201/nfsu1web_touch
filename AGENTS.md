@@ -54,3 +54,8 @@ The user reports maintainer permission to reuse the referenced repositories with
 Delegate independent investigations, implementation and reviews when beneficial. Assign ownership, avoid overlapping edits, coordinate interfaces, and integrate findings. Choose suitable models/reasoning when supported. Continue without repeating completed research.
 
 Use imperative commit subjects. PRs should explain changes and list validation and limitations.
+
+<!-- entire-agent:begin -->
+Read .entire/agent-guide.md for this repository's workflow, source inspection, and verification guidance.
+@.entire/agent-guide.md
+<!-- entire-agent:end -->
