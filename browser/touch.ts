@@ -223,6 +223,15 @@ interface Ctl {
 }
 
 type Mode = 'drive' | 'menu' | '';
+let forcedMode: Mode | null = null;
+
+export function setForcedMode(m: Mode | null): void {
+  forcedMode = m;
+}
+
+export function getForcedMode(): Mode | null {
+  return forcedMode;
+}
 let toldCancel = false;
 
 const svg = (d: string) => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -514,7 +523,8 @@ export class TouchControls {
 
   private update(): void {
     const on = !!this.session && this.seen && !this.away;
-    const mode: Mode = !on ? '' : (this.drive & 3) > 0 && (this.drive & 8) === 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
+    const autoMode: Mode = !on ? '' : (this.drive & 3) > 0 && (this.drive & 8) === 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
+    const mode: Mode = forcedMode ?? autoMode;
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
     this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
     this.setMode(mode);
@@ -818,6 +828,46 @@ export function mountTouchSettings(root: HTMLElement | null): void {
   note.className = 'hint';
   note.textContent = 'Shown automatically when you touch the screen on a phone or tablet. In menus, tap items directly, drag with two fingers to turn the car, or use the D-pad, Back, OK and Keyboard buttons.';
 
+  // Active controls mode row (Auto / Driving / Menu)
+  const modeRow = document.createElement('div');
+  modeRow.className = 'set';
+  const modeLabel = document.createElement('span');
+  modeLabel.className = 'set-label';
+  modeLabel.textContent = 'Controls';
+  const modeHelp = document.createElement('span');
+  modeHelp.className = 'set-help';
+  const modeCtl = document.createElement('div');
+  modeCtl.className = 'set-control';
+  const modeSeg = document.createElement('div');
+  modeSeg.className = 'seg';
+  modeSeg.setAttribute('role', 'radiogroup');
+  modeSeg.setAttribute('aria-label', 'Controls mode');
+  for (const [val, text, help] of [
+    ['auto', 'Auto', 'Switch automatically (driving controls in race, menu in menus).'],
+    ['drive', 'Driving', 'Force driving pedals and steering on screen.'],
+    ['menu', 'Menu', 'Force menu D-pad, Back and OK buttons on screen.'],
+  ] as const) {
+    const opt = document.createElement('label');
+    opt.className = 'opt';
+    const inp = document.createElement('input');
+    inp.type = 'radio';
+    inp.name = `${uid}-mode`;
+    inp.value = val;
+    inp.checked = val === 'auto' ? forcedMode === null : forcedMode === val;
+    inp.addEventListener('change', () => {
+      setForcedMode(val === 'auto' ? null : (val as Mode));
+      modeHelp.textContent = help;
+    });
+    if (inp.checked) modeHelp.textContent = help;
+    const txt = document.createElement('span');
+    txt.textContent = text;
+    opt.append(inp, txt);
+    modeSeg.append(opt);
+  }
+  modeCtl.append(modeSeg);
+  modeRow.append(modeLabel, modeCtl, modeHelp);
+  group.append(heading, note, modeRow);
+
   // Steering mode row
   const steerRow = document.createElement('div');
   steerRow.className = 'set';
@@ -897,7 +947,7 @@ export function mountTouchSettings(root: HTMLElement | null): void {
   sizeCtl.append(sizeSeg);
   sizeRow.append(sizeLabel, sizeHelp, sizeCtl);
 
-  group.append(heading, note, steerRow, sizeRow);
+  group.append(steerRow, sizeRow);
   root.append(group);
 }
 

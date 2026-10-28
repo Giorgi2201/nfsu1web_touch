@@ -1,15 +1,14 @@
 --- a/runtime/web/status_web.c
 +++ b/runtime/web/status_web.c
-@@ -6,6 +6,8 @@
+@@ -6,6 +6,7 @@
   * frame rate rather than the page's display rate. */
  #include "status_proto.h"
  #include "host_abi.h"
 +#include "../cpu.h"
-+#include "../nfsu1_widescreen.h"
  #include <pthread.h>
  #include <string.h>
  #include <time.h>
-@@ -53,13 +55,20 @@
+@@ -53,13 +54,16 @@
   * app review, finding 1). */
  static void *status_main(void *unused){
      (void)unused;
@@ -17,17 +16,13 @@
 -                    host_status_slot("tris"), host_status_slot("textures") };
 +    int slot[6] = { host_status_slot("frames"), host_status_slot("frames_t"), host_status_slot("frames_dropped"),
 +                    host_status_slot("tris"), host_status_slot("textures"), host_status_slot("drive") };
-+    unsigned last_hud = 0;
-+    long last_hud_frame = -1000;
      for (;;){
          struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
 -        double v[5] = { (double)metal_frames(), ts.tv_sec * 1e3 + ts.tv_nsec * 1e-6, (double)metal_frames_dropped(),
 -                        (double)metal_tris(), (double)metal_tex_created() - (double)metal_tex_released() };
 -        host_status_set_n(slot, v, 5);
 +        long frames = metal_frames();
-+        unsigned hud = nfsu1_widescreen_hud_draws();
-+        if (hud != last_hud){ last_hud = hud; last_hud_frame = frames; }
-+        int in_race = mem_is_committed(0x0077A920u) && MR32(0x0077A920u) == 6u && frames - last_hud_frame <= 2;
++        int in_race = mem_is_committed(0x0077A920u) && MR32(0x0077A920u) == 6u;
 +        double v[6] = { (double)frames, ts.tv_sec * 1e3 + ts.tv_nsec * 1e-6, (double)metal_frames_dropped(),
 +                        (double)metal_tris(), (double)metal_tex_created() - (double)metal_tex_released(),
 +                        in_race ? 5.0 : 0.0 };
@@ -35,7 +30,7 @@
          usleep(g_st.period_ms * 1000u);
      }
      return 0;
-@@ -68,7 +77,7 @@
+@@ -68,7 +72,7 @@
  /* main_web.c, before the guest starts */
  void status_web_start(void){
      g_st.magic = HOST_STATUS_MAGIC;
