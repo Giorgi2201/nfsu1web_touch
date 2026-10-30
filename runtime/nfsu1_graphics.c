@@ -144,7 +144,7 @@ void nfsu1_graphics_apply(void){
             else if (!strcmp(setting->name, "LIGHTSTREAKS")) requested = 0;
             else if (!strcmp(setting->name, "WORLDENVMAP")) requested = 0;
             else if (!strcmp(setting->name, "ENVMAP")) requested = 0;
-            else if (!strcmp(setting->name, "WorldLOD")) requested = 2;
+            else if (!strcmp(setting->name, "WorldLOD")) requested = 3;
             else if (!strcmp(setting->name, "CarLOD")) requested = 1;
             else if (!strcmp(setting->name, "CROWD")) requested = 1;
             else if (!strcmp(setting->name, "FOG")) requested = 1;
