@@ -9,7 +9,7 @@
  import { GameSession } from './game';
  import { AwayCheck, AWAY_LIMITS, type AwayLimits } from './away';
  import { moviesKept, Predownload } from './predownload';
-+import { keepScreenOn, mountTouchSettings, TouchControls, touchFirst } from './touch';
++import { isPhone, keepScreenOn, mountTouchSettings, TouchControls, touchFirst } from './touch';
  
  type Phase = 'boot' | 'ready' | 'error' | 'waiting' | 'starting' | 'playing' | 'exited';
  
@@ -69,15 +69,14 @@
      const fs = await enterFullscreen(stage);
 -    if (!fs.ok) fsNote = 'Full screen was not allowed here; F9 has it in the menu.';
 -    else if (!fs.locked) fsNote = 'Esc leaves full screen in this browser (no keyboard lock).';
--  }
 +    if (!fs.ok && !isTouch) fsNote = 'Full screen was not allowed here; F9 has it in the menu.';
 +    else if (fs.ok && !fs.locked && !isTouch) fsNote = 'Esc leaves full screen in this browser (no keyboard lock).';
-+  }
+   }
 +  if (typeof keepScreenOn === 'function') allowScreenOff = keepScreenOn(logLine);
    const size = await settledSize(canvas);
    await Promise.race([refreshMeasured, new Promise(r => setTimeout(r, 2000))]);
    canvas.focus();
-@@ -299,9 +305,22 @@
+@@ -299,9 +305,26 @@
    // the save overlay: registry seed (bundle.m app_seed_registry), test inputs
    const host: Record<string, string> = {
      HOME: '/save', NFSU2_DATA: '/data', NFSU2_SAVEDIR: '/save', NFSU2_REGFILE: '/save/registry.txt',
@@ -90,7 +89,11 @@
 +  delete r.env.NFSRES;
 +  r.env.NFSU1_DYNAMIC_RESOLUTION = '1';
 +  if (r.env.NFSU1_WIDESCREEN === undefined) r.env.NFSU1_WIDESCREEN = '1';
-+  log.add(`[app] graphics quality: ${r.env.NFSU1_GRAPHICS ?? 'max'}; render: automatic device pixels, widescreen=${r.env.NFSU1_WIDESCREEN}`);
++  if (typeof isPhone === 'function' && isPhone()) {
++    if (!r.env.NFSU1_GRAPHICS) r.env.NFSU1_GRAPHICS = 'mobile';
++    if (!r.env.NFSU1_RENDER && !r.env.NFSU2_RENDER) r.env.NFSU1_RENDER = 'scale:0.75';
++  }
++  log.add(`[app] graphics quality: ${r.env.NFSU1_GRAPHICS ?? 'max'}; render: ${r.env.NFSU1_RENDER ?? '100%'}, widescreen=${r.env.NFSU1_WIDESCREEN}`);
 +  // Preserve shared host options; filter unsupported game variables before startup.
 +  Object.assign(r.env, {
 +    NFSU2_AUTOSAVE: '0', NFSU2_NET: 'on', NFSU2_ONLINE: '1', NFSU2_ROAM: '0',
@@ -100,7 +103,7 @@
    // offline mode: the server does not answer.  The movies stream from it, so unless every one of them is in this
    // browser they are off for this game (a movie the game could not read would stop it).
    setReach(await serverAnswers(2000));
-@@ -317,7 +336,7 @@
+@@ -317,7 +340,7 @@
    // the log is for sharing when asking for help: it names neither the server (a private server's address) nor
    // more of this browser than its major version and system (the audit's PRIV-5).  These session lines stay when
    // a long game fills the log (logs.ts keep).
@@ -109,7 +112,7 @@
    log.keep(`[app] save folder: OPFS ${SAVE} (/save); canvas ${size.w}x${size.h} device pixels, display ${displayHz} Hz; ${browserBrief()}`);
    for (const n of r.notes) log.keep(`[app] ${n}`);
    const reg = r.env.NFSU2_REGFILE.replace(/^\/save\//, '');
-@@ -328,19 +347,7 @@
+@@ -328,19 +351,7 @@
      if (r.env.NFSU2_SEED_REGISTRY === '0') log.add('[app] no registry yet, the game will run its first-run check');
      else { await writeFile(SAVE, reg, registryDefaults); log.add(`[app] first launch, registry seeded with the built-in defaults (/save/${reg})`); }
    }
@@ -130,7 +133,7 @@
    if (q.get('script')) {
      await writeFile(SAVE, 'autotest-script.txt', await (await fetch(q.get('script')!, { cache: 'no-store' })).text());
      if (!('NFSU2_INPUT_SCRIPT' in r.env)) r.env.NFSU2_INPUT_SCRIPT = '/save/autotest-script.txt';
-@@ -351,9 +358,10 @@
+@@ -351,9 +362,10 @@
    await download.pause();
    // the server's virtual LAN: the game's own LAN races and Online mode (network = on, the default) and free
    // roam all need it; only network = off stays off it (the game then shows its own network error)
@@ -142,7 +145,7 @@
    fatal = null;
    quitAt = null;
    saved = null;
-@@ -363,7 +371,7 @@
+@@ -363,7 +375,7 @@
      // longer than the game), and a closure from this function would keep its
      // scope, and with it this game, reachable
      session = await GameSession.start({
@@ -151,7 +154,7 @@
        artifacts: q.get('artifacts') ?? undefined, dumpScale: q.get('dumpscale') ? +q.get('dumpscale')! : undefined,
        toggleFullscreen, log: logLine, onFatal: stopFatal,
      });
-@@ -376,16 +384,18 @@
+@@ -376,16 +388,18 @@
      download.resume();
      return;
    }
@@ -174,19 +177,17 @@
    void st.exited.then(code => { clearInterval(waitStatus); onExit(st, code); });
    // Chrome may keep the sound off until a click or a key press (its autoplay
    // rule); a controller button does not count, so say what does
-@@ -394,6 +404,24 @@
-     log.add(`[app] the AudioContext is ${st.audio.state()} after Play`);
-     toast('No sound yet: click the game or press a key to turn it on (a controller button cannot).', 8000);
+@@ -396,6 +410,24 @@
    }, 3000);
-+}
-+
+ }
+ 
 +const BROWSER_ENV = new Set([
 +  'HOME', 'NFSU2_DATA', 'NFSU2_SAVEDIR', 'NFSU2_REGFILE', 'NFSU2_WIDTH', 'NFSU2_HEIGHT',
 +  'NFSU2_DISPLAY_HZ', 'NFSU2_RENDERER', 'NFSU2_READONLY_DATA', 'NFSU1_SAVEDIR', 'NFSU1_READONLY_DATA',
 +  'GPUVS', 'FIXMAT', 'FIXMAT_MODE', 'ALARM', 'NOMOVIES', 'NOSOUND', 'NFSU2_BACKGROUND', 'SNDSYNC', 'NFSFULL', 'NFSMAXPIX',
 +  'NFSU2_PAD', 'NFSU2_PAD_DEADZONE', 'NFSU2_PAD_TRIGGER_DEADZONE', 'NFSU2_PAD_TRIGGER_CLICK', 'NFSU2_FF',
 +  'NFSU2_AUDIO_LATENCY', 'NFSU2_TZ', 'NFSU2_TZ_NAME',
-+  'NFSU1_DYNAMIC_RESOLUTION', 'NFSU1_GRAPHICS', 'NFSU1_INTRO', 'NFSU1_WIDESCREEN', 'NFSU1_DIAGNOSTICS', 'NFSU1_DIAGNOSTIC_WORDS', 'NFSU1_DEPTH_DIAGNOSTICS', 'COMTRACE', 'TRACE_MAX', 'FILELIST', 'PRESENTBT', 'BT',
++  'NFSU1_DYNAMIC_RESOLUTION', 'NFSU1_GRAPHICS', 'NFSU1_INTRO', 'NFSU1_WIDESCREEN', 'NFSU1_RENDER', 'NFSU2_RENDER', 'NFSU1_DIAGNOSTICS', 'NFSU1_DIAGNOSTIC_WORDS', 'NFSU1_DEPTH_DIAGNOSTICS', 'COMTRACE', 'TRACE_MAX', 'FILELIST', 'PRESENTBT', 'BT',
 +  'NFSU2_AUTOSAVE', 'NFSU2_NET', 'NFSU2_ONLINE', 'NFSU2_ROAM', 'NFSU2_SEED_REGISTRY', 'NFSU2_FPS_COUNTER', 'NFSU2_PAD_FE_KEYS',
 +]);
 +/** Pass only host contracts and explicitly supported bring-up diagnostics to the process. */
@@ -196,10 +197,12 @@
 +    NFSU2_SEED_REGISTRY: '0', NFSU2_FPS_COUNTER: 'off', NFSU2_PAD_FE_KEYS: '0',
 +    NFSU1_DYNAMIC_RESOLUTION: '1', NFSU1_SAVEDIR: '/save/nfsu1', NFSU1_READONLY_DATA: '1' });
 +  return out;
- }
- 
++}
++
  function logLine(s: string) { log.add(s); }
-@@ -442,6 +470,8 @@
+ /** whether the server answered (the start page's /players, or the check at Play): offline mode when not */
+ function setReach(ok: boolean) {
+@@ -442,6 +474,8 @@
  }
  
  function endStage() {
@@ -208,7 +211,7 @@
    away?.stop(); away = null;
    exitFullscreen();
    untrack?.(); untrack = null;
-@@ -473,31 +503,24 @@
+@@ -473,31 +507,24 @@
    if (fatal) setPhase('exited', 'Did not start', `The game was stopped: ${fatal}. Download the log to see why; ` +
      (firefoxVersion() !== null ? 'about:support, Graphics, shows what Firefox thinks of the graphics.' : 'chrome://gpu shows what Chrome thinks of the graphics.'));
    else {
@@ -249,7 +252,7 @@
  }
  /** the newest profile in this browser (listProfiles sorts by time), or null */
  async function newestProfile() { return (await listProfiles(SAVE).catch(() => []))[0] ?? null; }
-@@ -519,7 +542,10 @@
+@@ -519,7 +546,10 @@
  /** the controls sheet of the start page, in a dialog (F9, Controls, while the game runs) */
  function openHelp() {
    const body = $('#help-body');
@@ -261,7 +264,7 @@
    $<HTMLDialogElement>('#help').showModal();
  }
  
-@@ -579,16 +605,9 @@
+@@ -579,16 +609,9 @@
    const m = $<HTMLDialogElement>('#menu');
    if (m.open) { m.close(); return; }
    m.querySelector<HTMLButtonElement>('[data-act="fullscreen"]')!.textContent = isFullscreen() ? 'Leave full screen' : 'Full screen';
@@ -279,7 +282,7 @@
    $('#stage').classList.add('cursor');
    m.showModal();
  }
-@@ -600,26 +619,13 @@
+@@ -600,26 +623,13 @@
        m.close();
        toggleFullscreen();
        break;
@@ -307,7 +310,7 @@
        break;
      }
    }
-@@ -640,10 +646,7 @@
+@@ -640,10 +650,7 @@
    if (!quitAt || quitAt.s !== s) return 0;
    return quitAt.forced && performance.now() - quitAt.t > STOP_AFTER_MS ? 2 : 1;
  }
@@ -319,7 +322,7 @@
  
  // ------------------------------------------------------------- helpers --
  function confirmBox(title: string, body: Node | string, ok: string, danger = false, about = '', cancel = 'Cancel'): Promise<boolean> {
-@@ -657,7 +660,7 @@
+@@ -657,7 +664,7 @@
    d.showModal();
    return new Promise(res => d.addEventListener('close', () => res(d.returnValue === 'ok'), { once: true }));
  }
@@ -328,7 +331,7 @@
  
  // --------------------------------------------------------- game module --
  // A failed download (Wi-Fi drop, the server restarting, the module not built
-@@ -824,7 +827,7 @@
+@@ -824,7 +831,7 @@
    const asked = TEST_PARAMS.some(k => addr.has(k));
    const dev = asked && await devServer();
    const given = takeParams(dev);
@@ -337,7 +340,7 @@
    fps = new FpsOverlay($('#fps'));
    // made here once: a closure made per game (in startGame) would keep that game's scope reachable
    fps.extra = () => session?.stats() ?? {};
-@@ -834,7 +837,7 @@
+@@ -834,7 +841,7 @@
      readOnly: () => !instance.owner, say: pageToast,
    }, $('#online'));
    // who plays on this server now (Online): only while no game runs here
@@ -346,7 +349,7 @@
    window.addEventListener('online', () => players?.now());
    window.addEventListener('resize', placeNotices);
    download = new Predownload(s => saves.showData(s), logLine);
-@@ -842,6 +845,11 @@
+@@ -842,6 +849,11 @@
      saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
      onRestored: () => { void loadSettings(); void settings.refresh(); }, download,
    });
@@ -358,7 +361,7 @@
    $<HTMLButtonElement>('#play').onclick = () => void play();
    $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
    $<HTMLButtonElement>('#reload').onclick = () => void reload();
-@@ -849,13 +857,17 @@
+@@ -849,13 +861,17 @@
    $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
    $('#menu').addEventListener('close', () => { $('#stage').classList.remove('cursor'); $('#stage').querySelector('canvas')?.focus(); });
  
@@ -380,7 +383,7 @@
        return;
      }
      // Enter plays only when nothing else has the focus (or Play itself does): a
-@@ -900,6 +912,7 @@
+@@ -900,6 +916,7 @@
      newer: () => newer, tried: () => tried,
      env: () => resolved().env, settingsText: () => settingsText, checks: () => [...checks.values()],
      fpsMode: (m?: FpsMode) => { if (m && FPS_MODES.includes(m)) fps.set(m); return fps.mode; },
